@@ -18,10 +18,32 @@ from modules.export.pdf import saveToPdf
 from modules.export.json import saveToJson
 from modules.utils.file_operations import isFile, getLinesFromFile
 from modules.utils.permute import Permute
-from modules.ner.entity_extraction import inialize_nlp_model
 from dotenv import load_dotenv
 
+# ✅ Import spaCy directly
+try:
+    import spacy
+except ImportError:
+    print("spaCy is not installed. Installing it now...")
+    os.system("pip install spacy")
+    import spacy
+
 load_dotenv()
+
+def inialize_nlp_model(config):
+    """
+    Initialize the NLP model (fallback to spaCy en_core_web_sm)
+    """
+    console = config.console
+    try:
+        console.print("[cyan]🔍 Loading spaCy model 'en_core_web_sm'...[/cyan]")
+        config.nlp = spacy.load("en_core_web_sm")
+        console.print("[green]✅ Loaded spaCy model successfully.[/green]")
+    except OSError:
+        console.print("[yellow]⚠️ Model not found. Downloading 'en_core_web_sm'...[/yellow]")
+        os.system("python -m spacy download en_core_web_sm")
+        config.nlp = spacy.load("en_core_web_sm")
+        console.print("[green]✅ Downloaded and loaded spaCy model.[/green]")
 
 
 def initiate():
@@ -69,67 +91,32 @@ def initiate():
         "--email-file",
         help="The list of emails to be searched.",
     )
-    parser.add_argument(
-        "--csv",
-        action="store_true",
-        help="Generate a CSV with the results."
-    )
-
-    parser.add_argument(
-        "--pdf",
-        action="store_true",
-        help="Generate a PDF with the results."
-    )
-
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Generate a JSON with the results."
-    )
-
-    parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Show verbose output."
-    )
-
-    parser.add_argument(
-        "-ai", "--ai",
-        action="store_true",
-        help="Extract Metadata with AI."
-    )
-    parser.add_argument(
-        "--filter",
-        help='Filter sites to be searched by list property value.E.g --filter "cat=social"',
-    )
-    parser.add_argument(
-        "--no-nsfw", action="store_true", help="Removes NSFW sites from the search."
-    )
-    parser.add_argument(
-        "--dump", action="store_true", help="Dump HTML content for found accounts."
-    )
-    parser.add_argument("--proxy", help="Proxy to send HTTP requests though.")
+    parser.add_argument("--csv", action="store_true", help="Generate a CSV with results.")
+    parser.add_argument("--pdf", action="store_true", help="Generate a PDF with results.")
+    parser.add_argument("--json", action="store_true", help="Generate a JSON with results.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Show verbose output.")
+    parser.add_argument("-ai", "--ai", action="store_true", help="Extract Metadata with AI.")
+    parser.add_argument("--filter", help='Filter sites by property. E.g: --filter "cat=social"')
+    parser.add_argument("--no-nsfw", action="store_true", help="Removes NSFW sites from the search.")
+    parser.add_argument("--dump", action="store_true", help="Dump HTML content for found accounts.")
+    parser.add_argument("--proxy", help="Proxy to send HTTP requests through.")
     parser.add_argument(
         "--timeout",
         type=int,
         default=30,
-        help="Timeout in seconds for each HTTP request (Default is 30).",
+        help="Timeout in seconds for HTTP requests (Default: 30).",
     )
     parser.add_argument(
         "--max-concurrent-requests",
         type=int,
         default=30,
-        help="Specify the maximum number of concurrent requests allowed. Default is 30.",
+        help="Max concurrent HTTP requests (Default: 30).",
     )
-    parser.add_argument(
-        "--no-update", action="store_true", help="Don't update sites lists."
-    )
-    parser.add_argument(
-        "--about", action="store_true", help="Show about information and exit."
-    )
+    parser.add_argument("--no-update", action="store_true", help="Don't update sites lists.")
+    parser.add_argument("--about", action="store_true", help="Show about information and exit.")
+
     args = parser.parse_args()
 
-    # Store the necessary arguments to config Object
     config.username = args.username
     config.username_file = args.username_file
     config.permute = args.permute
@@ -152,15 +139,11 @@ def initiate():
     config.instagram_session_id = os.getenv("INSTAGRAM_SESSION_ID")
 
     config.console = Console()
-
     config.dateRaw = datetime.now().strftime("%m_%d_%Y")
     config.datePretty = datetime.now().strftime("%B %d, %Y")
-
     config.userAgent = getRandomUserAgent(config)
-
     config.usernameFoundAccounts = None
     config.emailFoundAccounts = None
-
     config.currentUser = None
     config.currentEmail = None
 
@@ -179,7 +162,6 @@ if __name__ == "__main__":
     ░    ░   ░ ░    ░   ▒   ░        ░ ░░ ░  ░    ░  ▒ ░  ░░   ░  ░ ░  ░ 
     ░          ░  ░     ░  ░░ ░      ░  ░    ░       ░     ░        ░    
         ░                  ░                     ░               ░      
-
     [/red]"""
     )
     config.console.print(
@@ -190,22 +172,19 @@ if __name__ == "__main__":
         config.console.print(
             """
         Author: Lucas Antoniaci (p1ngul1n0)
-        Description: Blackbird is an OSINT tool that perform reverse search in username and emails.
-        About WhatsMyName Project: This tool search for accounts using data from the WhatsMyName project, which is an open-source tool developed by WebBreacher. WhatsMyName License: The WhatsMyName project is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0). More details (https://github.com/WebBreacher/WhatsMyName)
+        Description: Blackbird is an OSINT tool that performs reverse search in usernames and emails.
+        WhatsMyName Project: Uses data from the open-source WhatsMyName project by WebBreacher.
+        License: CC BY-SA 4.0. (https://github.com/WebBreacher/WhatsMyName)
         """
         )
         sys.exit()
 
-    if (
-        not config.username
-        and not config.email
-        and not config.username_file
-        and not config.email_file
-    ):
-        config.console.print("Either --username or --email is required")
+    if not config.username and not config.email and not config.username_file and not config.email_file:
+        config.console.print("❌ Either --username or --email is required")
         sys.exit()
+
     if not config.username and (config.permute or config.permuteall):
-        config.console.print("Permutations requires --username")
+        config.console.print("❌ Permutations require --username")
         sys.exit()
 
     if config.no_update:
@@ -221,7 +200,7 @@ if __name__ == "__main__":
         if isFile(config.username_file):
             config.username = getLinesFromFile(config.username_file)
             config.console.print(
-                f':glasses: Successfully loaded {len(config.username)} usernames from "{config.username_file}"'
+                f':glasses: Loaded {len(config.username)} usernames from "{config.username_file}"'
             )
         else:
             config.console.print(f'❌ Could not read file "{config.username_file}"')
@@ -234,7 +213,7 @@ if __name__ == "__main__":
             permute = Permute(config.username)
             config.username = permute.gather(way)
             config.console.print(
-                f":glasses: Successfully loaded {len(config.username)} usernames from permuting {elements}"
+                f":glasses: Generated {len(config.username)} permutations from {elements}"
             )
         for user in config.username:
             config.currentUser = user
@@ -254,7 +233,7 @@ if __name__ == "__main__":
         if isFile(config.email_file):
             config.email = getLinesFromFile(config.email_file)
             config.console.print(
-                f':glasses: Successfully loaded {len(config.email)} emails from "{config.email_file}"'
+                f':glasses: Loaded {len(config.email)} emails from "{config.email_file}"'
             )
         else:
             config.console.print(f'❌ Could not read file "{config.email_file}"')

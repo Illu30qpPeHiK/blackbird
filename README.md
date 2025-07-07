@@ -82,3 +82,6 @@ of these programs or any derivatives thereof. By using these programs you accept
 that any damage (dataloss, system crash, system compromise, etc.) caused by the use of these 
 programs is not P1ngul1n0's responsibility.
 ```
+
+### Tutorial
+https://p1ngul1n0.gitbook.io/blackbird/getting-started
